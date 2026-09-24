@@ -1,0 +1,26 @@
+# Python 3.12, Linux x86_64 + NVIDIA GPU (H100).
+#
+# Install with uv so torch gets the CUDA build matching your driver:
+#   uv pip install -r requirements.txt --torch-backend=auto
+
+# vLLM pinned to nightly commit e9757321527ca1ecd514c07c1418dd2c53da3d19, which
+# has DiffusionGemma structured-read support (what structured_server.py needs).
+# This is the default CUDA 13 build (torch 2.13, NVIDIA driver >= 580). For
+# CUDA 12.9 swap in the wheel under .../e9757321527ca1ecd514c07c1418dd2c53da3d19/cu129/.
+# It also pulls in transformers and pybase64, used by structured_server.py.
+vllm @ https://wheels.vllm.ai/e9757321527ca1ecd514c07c1418dd2c53da3d19/vllm-0.29.1rc1.dev573%2Bge97573215-cp38-abi3-manylinux_2_28_x86_64.whl
+
+# Client: talks to structured_server.py over HTTP
+httpx>=0.28
+
+# Environments
+gymnasium>=1.3.0
+minigrid>=3.1.0
+networkx>=3.5
+numpy>=2.0
+
+# Rendering levels to PNG
+pillow>=11.0
+
+# Topic datasets (data/topics.yaml)
+pyyaml>=6.0

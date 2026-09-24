@@ -1,0 +1,11 @@
+# One level description per line. Blank lines and lines starting with # are skipped.
+An empty room with the goal in the far corner from the agent.
+A simple maze with a single winding corridor from the agent to the goal.
+Two rooms separated by a wall with a single doorway in the middle.
+A dense forest of scattered obstacles that the agent must weave through.
+A spiral: the goal is at the center and the agent starts on the outside edge.
+The goal is right next to the agent, but a wall blocks the direct route so the agent must go around.
+Four rooms arranged in a square, connected by narrow gaps, with the agent and goal in opposite rooms.
+A long zigzag path that makes the shortest route as long as possible.
+A level with several dead-end corridors that trap an agent exploring greedily toward the goal.
+An impossible level where the goal is completely walled off from the agent.

@@ -1,0 +1,70 @@
+# jev-artist topics: each is drawn --k times on a 13x13 binary canvas.
+#   id       short name, used in file names and records
+#   prompt   the subject shown to jev (state.subject)
+#   probes   what the topic tests; for analysis only, never shown to jev
+topics:
+  - id: smiley
+    prompt: smiley face
+    probes: >-
+      Baseline icon. Left-right symmetric; a round outline, two eyes and a
+      curved mouth, so it needs features placed relative to each other.
+
+  - id: heart
+    prompt: heart
+    probes: >-
+      Symmetric silhouette with two lobes and a point at the bottom. Outline
+      or filled are both valid, which shows jev's default style.
+
+  - id: house
+    prompt: house with a pitched roof
+    probes: >-
+      Straight lines and a triangle over a rectangle. Tests vertical
+      composition (the roof must sit above the walls) and the 45-degree
+      roof edges.
+
+  - id: pine_tree
+    prompt: pine tree
+    probes: >-
+      Tiered triangle that widens downward, with a thin trunk at the bottom.
+      Tests widths growing row by row.
+
+  - id: arrow_right
+    prompt: arrow pointing right
+    probes: >-
+      Deliberately asymmetric: the head must be on the right. Tests whether
+      jev keeps left-right orientation.
+
+  - id: letter_a
+    prompt: the capital letter A
+    probes: >-
+      A glyph: two diagonals meeting at the top plus a crossbar. Tests
+      symbol knowledge and a thin-stroke drawing.
+
+  - id: spiral
+    prompt: square spiral winding in to the center
+    probes: >-
+      Long connected path that needs many pixels in some rows. Rendered as a
+      maze, it is also a hard maze, which ties back to UED.
+
+  - id: space_invader
+    prompt: space invader alien from the arcade game
+    probes: >-
+      Famous pixel-art sprite. Tests recall of a memorized low-resolution
+      image, as opposed to composing one.
+
+  - id: cat_face
+    prompt: cat face with pointed ears
+    probes: >-
+      Like the smiley but with distinguishing parts (ears, whiskers). Tests
+      whether jev adds category-specific details rather than a generic face.
+
+  - id: checkerboard
+    prompt: checkerboard pattern
+    probes: >-
+      A rule-based pattern, not an object: alternating pixels over the whole
+      canvas. Tests following a global rule (about 85 pixels, 6-7 per row).
+
+  - id: interesting
+    prompt: anything interesting
+    probes: >-
+      interesting stuff
