@@ -93,7 +93,7 @@ def turn_request(prompt, canvas, turn, max_turns):
     questions[f'r{y}'] = {
         'type': 'choice',
         'instructions': f'Row {y}: which column should be filled next?',
-        'criteria': {**{x: None for x in empty},
+        'criteria': {**{x: f'put black pixel at c{x}r{y}' for x in empty},
                      NO_OP: 'leave this row unchanged this turn'},
     }
   return state, questions
