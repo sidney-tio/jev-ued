@@ -23,6 +23,8 @@ import threading
 
 from PIL import Image
 
+from .render import render_maze
+
 
 def _entropy(p):
   return -sum(v * math.log(v) for v in p.values() if v > 0)
@@ -106,7 +108,6 @@ def canvas_of(record, after=False):
 
 def state_to_png(record, path, after=False, tile_size=32):
   """Renders a recorded state as a maze PNG (1 = wall)."""
-  from .artist import render_maze  # Deferred: pulls in minigrid
   image = render_maze(canvas_of(record, after), tile_size=tile_size)
   Image.fromarray(image).save(path)
   return path

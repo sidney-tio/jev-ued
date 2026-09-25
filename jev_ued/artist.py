@@ -7,7 +7,7 @@ one pixel per row, and a filled column is no longer offered for that row.
 Drawing stops when every row answers -1, or after --max-turns.
 
 The finished picture (1 = filled) is rendered as a maze: filled pixels become
-MiniGrid walls inside the usual boundary wall.
+walls inside a boundary wall (see render.py; plain numpy, no MiniGrid).
 
 Prompts come from a YAML dataset (data/topics.yaml), and each topic is
 drawn --k times with a different seed.
@@ -36,12 +36,11 @@ import re
 
 import numpy as np
 import yaml
-from minigrid.core.world_object import Wall
 from PIL import Image
 
 from . import recorder
 from .client import JevClient
-from .envs import multigrid
+from .render import render_maze
 
 SIZE = 13
 NO_OP = '-1'
@@ -160,18 +159,6 @@ def draw(client, prompt, rng, max_turns=SIZE, decode='sample', seed=0,
       drawing.finished = True
       break
   return drawing
-
-
-def render_maze(canvas, tile_size=32):
-  """Renders a binary canvas as a MiniGrid maze (1 = wall) inside a border."""
-  n = len(canvas)
-  grid = multigrid.Grid(n + 2, n + 2)
-  grid.wall_rect(0, 0, n + 2, n + 2)
-  for y, row in enumerate(canvas):
-    for x, v in enumerate(row):
-      if v:
-        grid.set(x + 1, y + 1, Wall())
-  return grid.render(tile_size)
 
 
 def load_topics(path, only=None):
