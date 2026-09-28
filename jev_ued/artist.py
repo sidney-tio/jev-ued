@@ -10,11 +10,13 @@ The finished picture (1 = filled) is rendered as a maze: filled pixels become
 walls inside a boundary wall (see render.py; plain numpy, no MiniGrid).
 
 Prompts come from a YAML dataset (data/topics.yaml), and each topic is
-drawn --k times with a different seed.
+drawn --k times with a different seed. A topic's optional target picture is
+shown to jev as state.target unless --no-target.
 
 Test run (needs scripts/serve.sh running):
   python -m jev_ued.artist                      # every topic, k=10
   python -m jev_ued.artist --only smiley,heart --k 3
+  python -m jev_ued.artist --no-target          # subject only, no target
 
 Writes to --out (default runs/artist-<timestamp>/):
   steps.jsonl                one record per topic, repeat and turn: the state
@@ -55,6 +57,12 @@ with the column of the next pixel to fill in that row, or -1 to leave the row \
 as it is this turn. Only empty columns are offered. When the picture is \
 finished, answer -1 for every row."""
 
+TARGET_INSTRUCTIONS = """
+
+The state also gives a target: the finished picture, in the same format as \
+the canvas. Reproduce it on the canvas by filling the pixels that are 1 in the \
+target; once the canvas matches the target, answer -1 for every row."""
+
 
 @dataclasses.dataclass
 class Turn:
@@ -78,13 +86,13 @@ class Drawing:
     return '\n'.join(''.join(map(str, row)) for row in self.canvas)
 
 
-def turn_request(prompt, canvas, turn, max_turns):
+def turn_request(prompt, canvas, turn, max_turns, target=None):
   """State and questions for one turn; full rows are not asked."""
-  state = {
-      'subject': prompt,
-      'canvas': [''.join(map(str, row)) for row in canvas],
-      'turn': f'{turn + 1} of at most {max_turns}',
-  }
+  state = {'subject': prompt}
+  if target is not None:
+    state['target'] = target
+  state['canvas'] = [''.join(map(str, row)) for row in canvas]
+  state['turn'] = f'{turn + 1} of at most {max_turns}'
   questions = {}
   for y, row in enumerate(canvas):
     empty = [str(x) for x, v in enumerate(row) if v == 0]
@@ -108,7 +116,7 @@ def _pick(probs, rng, decode):
 
 
 def draw(client, prompt, rng, max_turns=SIZE, decode='sample', seed=0,
-         size=SIZE, on_turn=None, **extensions):
+         size=SIZE, target=None, on_turn=None, **extensions):
   """Has jev draw `prompt`, one request per turn.
 
   Args:
@@ -120,6 +128,8 @@ def draw(client, prompt, rng, max_turns=SIZE, decode='sample', seed=0,
       mode.
     seed: Base seed for the server's noise draws.
     size: Canvas side length.
+    target: Optional picture to copy, as rows of '0'/'1' strings; shown to
+      jev as state.target.
     on_turn: Optional callback(turn_index, Drawing) after each turn.
     **extensions: Passed to JevClient.decide (samples, think, steps, ...).
 
@@ -129,9 +139,11 @@ def draw(client, prompt, rng, max_turns=SIZE, decode='sample', seed=0,
   canvas = [[0] * size for _ in range(size)]
   drawing = Drawing(prompt=prompt, canvas=canvas, turns=[], finished=False)
   instructions = INSTRUCTIONS.format(n=size, last=size - 1)
+  if target is not None:
+    instructions += TARGET_INSTRUCTIONS
 
   for turn in range(max_turns):
-    state, questions = turn_request(prompt, canvas, turn, max_turns)
+    state, questions = turn_request(prompt, canvas, turn, max_turns, target)
     if not questions:  # Canvas is full
       drawing.finished = True
       break
@@ -161,8 +173,11 @@ def draw(client, prompt, rng, max_turns=SIZE, decode='sample', seed=0,
   return drawing
 
 
-def load_topics(path, only=None):
-  """Reads topics from YAML: a list of {id, prompt, probes?} under 'topics'."""
+def load_topics(path, only=None, size=SIZE):
+  """Reads topics from YAML: a list of {id, prompt, target?, probes?} under
+  'topics'. A target is `size` lines of `size` 0/1 characters; it is returned
+  as a list of row strings.
+  """
   with open(path) as f:
     topics = yaml.safe_load(f)['topics']
   ids = [t['id'] for t in topics]
@@ -172,6 +187,13 @@ def load_topics(path, only=None):
     if not re.fullmatch(r'[a-z0-9_]+', t['id']) or not t.get('prompt'):
       raise ValueError(f'{path}: bad topic {t!r}; needs a snake_case id and '
                        'a prompt')
+    if 'target' in t:
+      rows = str(t['target']).split()
+      if len(rows) != size or not all(
+          re.fullmatch(rf'[01]{{{size}}}', r) for r in rows):
+        raise ValueError(f"{path}: topic {t['id']!r}: target must be {size} "
+                         f'rows of {size} 0/1 characters')
+      t['target'] = rows
   if only:
     unknown = set(only) - set(ids)
     if unknown:
@@ -196,6 +218,10 @@ def parse_args():
                  help="Take each row's most likely option, or sample it")
   p.add_argument('--samples', default='auto',
                  help='Server noise draws per read: "auto" or a count')
+  p.add_argument('--target', action=argparse.BooleanOptionalAction,
+                 default=True,
+                 help="Show each topic's target picture to jev as "
+                      'state.target (--no-target to leave it out)')
   p.add_argument('--think', type=int, default=0,
                  help='Thought tokens jev may write before each turn')
   p.add_argument('--concurrency', type=int, default=8,
@@ -234,6 +260,7 @@ def main():
 
     drawing = draw(client, topic['prompt'], np.random.default_rng(seed),
                    max_turns=args.max_turns, decode=args.decode, seed=seed,
+                   target=topic.get('target') if args.target else None,
                    on_turn=on_turn, samples=samples, think=args.think)
     stem = out_dir / 'drawings' / f"{topic['id']}-r{rep:02d}"
     Image.fromarray(render_maze(drawing.canvas)).save(f'{stem}.png')

@@ -1,22 +1,66 @@
 # jev-artist topics: each is drawn --k times on a 13x13 binary canvas.
 #   id       short name, used in file names and records
 #   prompt   the subject shown to jev (state.subject)
+#   target   optional reference picture: 13 rows of 0/1, 1 = filled;
+#            shown to jev as state.target unless --no-target
 #   probes   what the topic tests; for analysis only, never shown to jev
 topics:
   - id: smiley
     prompt: smiley face
+    target: |-
+      0000111110000
+      0011000001100
+      0100000000010
+      0101100011010
+      1001100011001
+      1000000000001
+      1000000000001
+      1010000000101
+      1001000001001
+      0100111110010
+      0100000000010
+      0011000001100
+      0000111110000
     probes: >-
       Baseline icon. Left-right symmetric; a round outline, two eyes and a
       curved mouth, so it needs features placed relative to each other.
 
   - id: heart
     prompt: heart
+    target: |-
+      0000000000000
+      0011100011100
+      0111110111110
+      1111111111111
+      1111111111111
+      1111111111111
+      0111111111110
+      0011111111100
+      0001111111000
+      0000111110000
+      0000011100000
+      0000001000000
+      0000000000000
     probes: >-
       Symmetric silhouette with two lobes and a point at the bottom. Outline
       or filled are both valid, which shows jev's default style.
 
   - id: house
     prompt: house with a pitched roof
+    target: |-
+      0000001000000
+      0000010100000
+      0000100010000
+      0001000001000
+      0010000000100
+      0100000000010
+      1111111111111
+      0100000000010
+      0101100000010
+      0101100000010
+      0100011100010
+      0100010100010
+      0111110111110
     probes: >-
       Straight lines and a triangle over a rectangle. Tests vertical
       composition (the roof must sit above the walls) and the 45-degree
@@ -24,42 +68,140 @@ topics:
 
   - id: pine_tree
     prompt: pine tree
+    target: |-
+      0000001000000
+      0000011100000
+      0000111110000
+      0000011100000
+      0000111110000
+      0001111111000
+      0000111110000
+      0001111111000
+      0011111111100
+      0111111111110
+      0000001000000
+      0000001000000
+      0000001000000
     probes: >-
       Tiered triangle that widens downward, with a thin trunk at the bottom.
       Tests widths growing row by row.
 
   - id: arrow_right
     prompt: arrow pointing right
+    target: |-
+      0000000000000
+      0000000100000
+      0000000110000
+      0000000111000
+      0000000111100
+      1111111111110
+      1111111111111
+      1111111111110
+      0000000111100
+      0000000111000
+      0000000110000
+      0000000100000
+      0000000000000
     probes: >-
       Deliberately asymmetric: the head must be on the right. Tests whether
       jev keeps left-right orientation.
 
   - id: letter_a
     prompt: the capital letter A
+    target: |-
+      0000011100000
+      0000110110000
+      0000100010000
+      0001100011000
+      0001000001000
+      0011000001100
+      0010000000100
+      0011111111100
+      0110000000110
+      0100000000010
+      0100000000010
+      1100000000011
+      1000000000001
     probes: >-
       A glyph: two diagonals meeting at the top plus a crossbar. Tests
       symbol knowledge and a thin-stroke drawing.
 
   - id: spiral
     prompt: square spiral winding in to the center
+    target: |-
+      1111111111111
+      0000000000001
+      1111111111101
+      1000000000101
+      1011111110101
+      1010000010101
+      1010111010101
+      1010100010101
+      1010111110101
+      1010000000101
+      1011111111101
+      1000000000001
+      1111111111111
     probes: >-
       Long connected path that needs many pixels in some rows. Rendered as a
       maze, it is also a hard maze, which ties back to UED.
 
   - id: space_invader
     prompt: space invader alien from the arcade game
+    target: |-
+      0000000000000
+      0000000000000
+      0001000001000
+      0000100010000
+      0001111111000
+      0011011101100
+      0111111111110
+      0101111111010
+      0101000001010
+      0000110110000
+      0000000000000
+      0000000000000
+      0000000000000
     probes: >-
       Famous pixel-art sprite. Tests recall of a memorized low-resolution
       image, as opposed to composing one.
 
   - id: cat_face
     prompt: cat face with pointed ears
+    target: |-
+      0100000000010
+      0110000000110
+      0101000001010
+      0100111110010
+      0100000000010
+      0100100010010
+      0100100010010
+      0100000000010
+      1110001000111
+      0100010100010
+      1110000000111
+      0011000001100
+      0000111110000
     probes: >-
       Like the smiley but with distinguishing parts (ears, whiskers). Tests
       whether jev adds category-specific details rather than a generic face.
 
   - id: checkerboard
     prompt: checkerboard pattern
+    target: |-
+      1010101010101
+      0101010101010
+      1010101010101
+      0101010101010
+      1010101010101
+      0101010101010
+      1010101010101
+      0101010101010
+      1010101010101
+      0101010101010
+      1010101010101
+      0101010101010
+      1010101010101
     probes: >-
       A rule-based pattern, not an object: alternating pixels over the whole
       canvas. Tests following a global rule (about 85 pixels, 6-7 per row).
