@@ -19,23 +19,29 @@ class JevClient:
   """Thread-safe client; share one instance across worker threads."""
 
   def __init__(self, base_url='http://127.0.0.1:8011', model='jev-latest',
-               api_key=None, timeout=600.0, retries=3):
+               api_key=None, timeout=600.0, retries=3,
+               instructions_in_state=False):
     api_key = api_key or os.environ.get('JEV_API_KEY')
     headers = {'authorization': f'Bearer {api_key}'} if api_key else {}
     self.http = httpx.Client(base_url=base_url, headers=headers,
                              timeout=timeout)
     self.model = model
     self.retries = retries
+    # Servers that only take {state, model, questions} (kev.serve) drop a
+    # top-level `instructions`; this moves it into the state instead.
+    self.instructions_in_state = instructions_in_state
 
   def wait_until_healthy(self, timeout=600.0, interval=2.0):
-    """Blocks until the server's /health answers, e.g. while vLLM loads."""
+    """Blocks until the server's /health (or, for kev.serve, /v1/models)
+    answers, e.g. while vLLM loads."""
     deadline = time.monotonic() + timeout
     while True:
-      try:
-        if self.http.get('/health').status_code == 200:
-          return
-      except httpx.TransportError:
-        pass
+      for path in ('/health', '/v1/models'):
+        try:
+          if self.http.get(path).status_code == 200:
+            return
+        except httpx.TransportError:
+          pass
       if time.monotonic() > deadline:
         raise TimeoutError(f'{self.http.base_url} not healthy after {timeout}s')
       time.sleep(interval)
@@ -56,6 +62,11 @@ class JevClient:
       A choice answer is {'choice', 'probabilities': {option: p},
       'confidence'}.
     """
+    if self.instructions_in_state and 'instructions' in extensions:
+      instructions = extensions.pop('instructions')
+      state = ({'instructions': instructions, **state}
+               if isinstance(state, dict)
+               else {'instructions': instructions, 'state': state})
     body = {'model': self.model, 'state': state, 'questions': questions,
             **extensions}
     if seed is not None:

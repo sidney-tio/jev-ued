@@ -226,6 +226,9 @@ def parse_args():
                  help='Thought tokens jev may write before each turn')
   p.add_argument('--concurrency', type=int, default=8,
                  help='Drawings in progress at once')
+  p.add_argument('--instructions-in-state', action='store_true',
+                 help='Send the instructions inside the state, for servers '
+                      'that ignore a top-level instructions field (kev.serve)')
   p.add_argument('--seed', type=int, default=0)
   p.add_argument('--out', default=None)
   return p.parse_args()
@@ -242,7 +245,8 @@ def main():
       {**vars(args), 'topics': topics}, indent=2))
   samples = args.samples if args.samples == 'auto' else int(args.samples)
 
-  client = JevClient(args.url)
+  client = JevClient(args.url,
+                     instructions_in_state=args.instructions_in_state)
   print(f'Waiting for {args.url} ...', flush=True)
   client.wait_until_healthy()
 
