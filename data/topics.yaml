@@ -3,7 +3,8 @@
 #   prompt   the subject shown to jev (state.subject)
 #   target   optional reference picture: 13 rows of 0/1, 1 = filled;
 #            shown to jev as state.target unless --no-target
-#   probes   what the topic tests; for analysis only, never shown to jev
+#   probes   what the topic tests; not shown to jev, except as the option
+#            descriptions in jev_ued.identify --mode choice --criteria probe
 topics:
   - id: smiley
     prompt: smiley face

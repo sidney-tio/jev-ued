@@ -6,40 +6,47 @@
 #SBATCH --gres=gpu:1
 #SBATCH --constraint=h100nvl
 #SBATCH --output=%x.%A_%a.out
-#SBATCH --array=0-3
+#SBATCH --array=0-11%4  # 4 models x 3 criteria; at most 4 tasks run at once
 #SBATCH --partition=pradeepresearch
 #SBATCH --qos=pradeepresearch-priority
 #SBATCH --mail-user=sidney.tio.2021@phdcs.smu.edu.sg
 #SBATCH --mail-type=BEGIN,END,FAIL
-#SBATCH --job-name=jev-identify-models
+#SBATCH --job-name=jev-identify-criteria
 
-# Slurm array over the kev models: each task serves one model with kev.serve
-# (the kev repo's own /v1/systemone server; no vLLM) on one GPU, then
-# runs jev-identify over the target pictures in data/topics.yaml.
+# Slurm array over the kev models x the choice criteria: each task serves one
+# model with kev.serve (the kev repo's own /v1/systemone server; no vLLM) on
+# one GPU, then runs jev-identify --mode choice with one --criteria over the
+# target pictures in data/topics.yaml. %4 on --array keeps at most 4 tasks
+# (4 GPUs) running at once; the rest wait in the queue.
 #
 # kev needs torch<2.9, so it lives in its own venv, set up once:
 #   git clone https://github.com/jaredpalmer/kev.git ~/kev
 #   cd ~/kev && uv sync --extra serve
 #
-# Usage: sbatch scripts/identify_models.slurm [jev_ued.identify args]
-#   sbatch scripts/identify_models.slurm                   # every model
-#   sbatch --array=1,3 scripts/identify_models.slurm       # only kev-4b and kev-27b
-#   sbatch scripts/identify_models.slurm --only smiley,spiral --k 3
-#   sbatch scripts/identify_models.slurm --mode choice   # one question, all subjects
-#   sbatch scripts/identify_models.slurm --mode choice --criteria null  # ids only, no descriptions
+# Usage: sbatch scripts/identify_criteria.slurm [jev_ued.identify args]
+#   sbatch scripts/identify_criteria.slurm                 # all 12 runs, k=5
+#   sbatch scripts/identify_criteria.slurm --k 3
+#   sbatch --array=9-11 scripts/identify_criteria.slurm    # only kev-27b
+# --mode and --criteria come from the array index; passing them is an error.
 #
-# Output: runs/identify-<mode>-<model>-<arrayjobid>/ (answers.jsonl, summary.json)
-# and its logs/ (server), e.g. runs/identify-noul-kev-4b-123456/. Slurm logs go to
-# jev-identify-models.<arrayjobid>_<taskid>.out.
+# Output: runs/identify-choice-<criteria>-<model>-<arrayjobid>/
+# (answers.jsonl, summary.json) and its logs/ (server), e.g.
+# runs/identify-choice-null-kev-4b-123456/. Slurm logs go to
+# jev-identify-criteria.<arrayjobid>_<taskid>.out.
 
-# Index = SLURM_ARRAY_TASK_ID; keep --array above in sync with this list.
+# Task i runs MODELS[i / 3] with CRITERIA[i % 3], so one model's runs are
+# adjacent: 0-2 kev-0.8b, 3-5 kev-4b, 6-8 kev-9b, 9-11 kev-27b. Keep --array
+# above at 0-(models x criteria - 1).
 MODELS=(
     "jaredpalmer/kev-0.8b"
     "jaredpalmer/kev-4b"
     "jaredpalmer/kev-9b"
     "jaredpalmer/kev-27b"
 )
-MODEL="${MODELS[$SLURM_ARRAY_TASK_ID]}"
+CRITERIA_LIST=(null name probe)
+N_CRITERIA=${#CRITERIA_LIST[@]}
+MODEL="${MODELS[$((SLURM_ARRAY_TASK_ID / N_CRITERIA))]}"
+CRITERIA="${CRITERIA_LIST[$((SLURM_ARRAY_TASK_ID % N_CRITERIA))]}"
 if [[ -z "$MODEL" ]]; then
     echo "ERROR: no model for array task $SLURM_ARRAY_TASK_ID"
     exit 1
@@ -57,23 +64,18 @@ source .venv/bin/activate
 export HF_HOME=~/scratch/huggingface_cache
 # export HF_TOKEN=...  # only if the model download is refused
 
-# Mode and choice criteria from the jev_ued.identify args, for the output dir
-# name: noul, or choice-<criteria> (e.g. choice-null)
-MODE=noul
-CRITERIA=prompt
-for ((i = 0; i < ${#IDENTIFY_ARGS[@]}; i++)); do
-    case "${IDENTIFY_ARGS[i]}" in
-        --mode) MODE="${IDENTIFY_ARGS[i+1]}" ;;
-        --mode=*) MODE="${IDENTIFY_ARGS[i]#--mode=}" ;;
-        --criteria) CRITERIA="${IDENTIFY_ARGS[i+1]}" ;;
-        --criteria=*) CRITERIA="${IDENTIFY_ARGS[i]#--criteria=}" ;;
+# The array index sets the mode and criteria; don't let the args contradict it
+for arg in "${IDENTIFY_ARGS[@]}"; do
+    case "$arg" in
+        --mode|--mode=*|--criteria|--criteria=*)
+            echo "ERROR: $arg: this script sets --mode choice and --criteria per task"
+            exit 1 ;;
     esac
 done
-[[ "$MODE" == choice ]] && MODE="choice-$CRITERIA"
-OUT_DIR="runs/identify-${MODE}-${MODEL_TAG}-${SLURM_ARRAY_JOB_ID}"
+OUT_DIR="runs/identify-choice-${CRITERIA}-${MODEL_TAG}-${SLURM_ARRAY_JOB_ID}"
 LOG_DIR="$OUT_DIR/logs"
 mkdir -p "$LOG_DIR"
-echo "Model: $MODEL -> $OUT_DIR"
+echo "Model: $MODEL, criteria: $CRITERIA -> $OUT_DIR"
 
 if [[ ! -x "$KEV_DIR/.venv/bin/python" ]]; then
     echo "ERROR: no kev venv at $KEV_DIR/.venv; see the setup above"
@@ -120,8 +122,10 @@ python -m jev_ued.identify \
     --url http://127.0.0.1:$KEV_PORT \
     --out "$OUT_DIR" \
     --instructions-in-state \
+    --mode choice \
+    --criteria "$CRITERIA" \
     "${IDENTIFY_ARGS[@]}"
 STATUS=$?
 
-echo "Identify ($MODEL) exited with status $STATUS; results in $OUT_DIR"
+echo "Identify ($MODEL, criteria $CRITERIA) exited with status $STATUS; results in $OUT_DIR"
 exit $STATUS

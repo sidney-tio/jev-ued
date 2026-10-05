@@ -18,8 +18,10 @@
 # Usage: sbatch scripts/identify.slurm [jev_ued.identify args]
 #   sbatch scripts/identify.slurm                        # all pictures, k=5
 #   sbatch scripts/identify.slurm --only smiley,spiral --k 3
+#   sbatch scripts/identify.slurm --mode choice          # one question, all subjects
+#   sbatch scripts/identify.slurm --mode choice --criteria null  # ids only, no descriptions
 #
-# Output: runs/identify-<jobid>/ (answers.jsonl, summary.json) and its logs/
+# Output: runs/identify-<mode>-<jobid>/ (answers.jsonl, summary.json) and its logs/
 # (servers).
 
 MODEL="google/diffusiongemma-26B-A4B-it"
@@ -36,7 +38,20 @@ source .venv/bin/activate
 export HF_HOME=~/scratch/huggingface_cache
 # export HF_TOKEN=...  # only if the model download is refused
 
-OUT_DIR="runs/identify-${SLURM_JOB_ID}"
+# Mode and choice criteria from the jev_ued.identify args, for the output dir
+# name: noul, or choice-<criteria> (e.g. choice-null)
+MODE=noul
+CRITERIA=prompt
+for ((i = 0; i < ${#IDENTIFY_ARGS[@]}; i++)); do
+    case "${IDENTIFY_ARGS[i]}" in
+        --mode) MODE="${IDENTIFY_ARGS[i+1]}" ;;
+        --mode=*) MODE="${IDENTIFY_ARGS[i]#--mode=}" ;;
+        --criteria) CRITERIA="${IDENTIFY_ARGS[i+1]}" ;;
+        --criteria=*) CRITERIA="${IDENTIFY_ARGS[i]#--criteria=}" ;;
+    esac
+done
+[[ "$MODE" == choice ]] && MODE="choice-$CRITERIA"
+OUT_DIR="runs/identify-${MODE}-${SLURM_JOB_ID}"
 LOG_DIR="$OUT_DIR/logs"
 mkdir -p "$LOG_DIR"
 
